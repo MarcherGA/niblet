@@ -1,0 +1,110 @@
+{
+  "brand": "Niblet",
+  "built_on": "2026-07-27",
+  "categories": [
+    {
+      "slug": "rhythm-foundations",
+      "title": "Rhythm Foundations",
+      "first_lesson": 1,
+      "lesson_count": 8
+    }
+  ],
+  "lessons": [
+    {
+      "number": 1,
+      "title": "Beat, Meter & the Shape of Time",
+      "slug": "beat-meter",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-19",
+      "minutes": 9,
+      "url": "lessons/001-beat-meter/",
+      "summary": "The pulse keeps moving; meter decides where time feels like it begins again.",
+      "glyph": "4/4",
+      "accent": "coral"
+    },
+    {
+      "number": 2,
+      "title": "Duration: Start, Hold, Stop",
+      "slug": "duration",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-20",
+      "minutes": 9,
+      "url": "lessons/002-duration/",
+      "summary": "A note is not just a point—it occupies a measured stretch of the beat.",
+      "glyph": "↔",
+      "accent": "mint"
+    },
+    {
+      "number": 3,
+      "title": "On-Beats, Offbeats & Anticipation",
+      "slug": "onbeats-offbeats",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-21",
+      "minutes": 9,
+      "url": "lessons/003-onbeats-offbeats/",
+      "summary": "The spaces between beats are exact locations—not timing mistakes.",
+      "glyph": "&",
+      "accent": "pink"
+    },
+    {
+      "number": 4,
+      "title": "Sixteenths: Zoom Into the Beat",
+      "slug": "sixteenth-grid",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-22",
+      "minutes": 9,
+      "url": "lessons/004-sixteenth-grid/",
+      "summary": "A finer ruler reveals the quick syllables hiding between familiar beats.",
+      "glyph": "16",
+      "accent": "blue"
+    },
+    {
+      "number": 5,
+      "title": "Syncopation: Lean Across the Beat",
+      "slug": "syncopation",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-23",
+      "minutes": 9,
+      "url": "lessons/005-syncopation/",
+      "summary": "Make a weak position important, then let it steal attention from a stronger beat.",
+      "glyph": "↝",
+      "accent": "coral"
+    },
+    {
+      "number": 6,
+      "title": "The Backbeat: Build a Groove in Layers",
+      "slug": "backbeat",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-24",
+      "minutes": 9,
+      "url": "lessons/006-backbeat/",
+      "summary": "A stable snare on 2 and 4 creates the floor that freer rhythms can push against.",
+      "glyph": "2+4",
+      "accent": "mint"
+    },
+    {
+      "number": 7,
+      "title": "Triplets: Three Inside One",
+      "slug": "triplets",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-25",
+      "minutes": 9,
+      "url": "lessons/007-triplets/",
+      "summary": "Change the internal ruler from two equal pieces to three—without moving the beat.",
+      "glyph": "⅓",
+      "accent": "pink"
+    },
+    {
+      "number": 8,
+      "title": "Swing: Bend the Middle",
+      "slug": "swing",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-26",
+      "minutes": 9,
+      "url": "lessons/008-swing/",
+      "summary": "Keep every numbered beat fixed while each offbeat slides later.",
+      "glyph": "≈",
+      "accent": "blue"
+    }
+  ]
+}
