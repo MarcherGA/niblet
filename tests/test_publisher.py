@@ -140,6 +140,28 @@ class PublisherTests(unittest.TestCase):
         self.assertTrue((lesson_root / "index.html").is_file())
         self.assertEqual(b"ID3-test-audio", (lesson_root / "assets/example.mp3").read_bytes())
 
+    def test_bottom_navigation_uses_only_released_neighbors(self) -> None:
+        self.lesson(number=1, title="One", category="rhythm", category_title="Rhythm", release_date="2026-07-27", slug="one")
+        self.lesson(number=2, title="Two", category="rhythm", category_title="Rhythm", release_date="2026-07-28", slug="two")
+        self.lesson(number=3, title="Three", category="ear", category_title="Ear", release_date="2026-07-29", slug="three")
+
+        build_site(self.content, self.output, as_of=date(2026, 7, 28), secret=self.secret)
+        first = (self.output / self.secret / "lessons/001-one/index.html").read_text(encoding="utf-8")
+        second = (self.output / self.secret / "lessons/002-two/index.html").read_text(encoding="utf-8")
+
+        self.assertNotIn('data-nav="previous"', first)
+        self.assertIn('data-nav="next" href="../002-two/"', first)
+        self.assertIn('data-nav="previous" href="../001-one/"', second)
+        self.assertNotIn('data-nav="next"', second)
+        self.assertNotIn("003-three", first + second)
+
+    def test_lesson_page_has_category_theme_and_unique_scene_class(self) -> None:
+        self.lesson(number=5, title="Syncopation", category="rhythm-foundations", category_title="Rhythm Foundations", release_date="2026-07-27", slug="syncopation")
+        build_site(self.content, self.output, as_of=date(2026, 7, 27), secret=self.secret)
+        page = (self.output / self.secret / "lessons/005-syncopation/index.html").read_text(encoding="utf-8")
+        self.assertIn("theme-rhythm-foundations", page)
+        self.assertIn("scene-syncopation", page)
+
     def test_invalid_lesson_does_not_replace_last_good_build(self) -> None:
         self.lesson(
             number=1,

@@ -143,23 +143,40 @@ def _landing_html(manifest: dict[str, Any]) -> str:
     <script src="assets/app.js"></script></body></html>'''
 
 
-def _lesson_html(lesson: dict[str, Any]) -> str:
+def _lesson_html(
+    lesson: dict[str, Any],
+    *,
+    previous: dict[str, Any] | None = None,
+    following: dict[str, Any] | None = None,
+) -> str:
     accent = {"coral": "#ff6b56", "mint": "#86f2c1", "pink": "#ff9fe4"}.get(
         lesson.get("accent"), "#3157ff"
     )
+    previous_link = ""
+    if previous:
+        previous_link = f'''<a class="journey-card previous" data-nav="previous" href="../{previous['number']:03d}-{html.escape(previous['slug'])}/">
+          <span class="journey-kicker">← Previous niblet</span><strong>{html.escape(previous['title'])}</strong><small>#{previous['number']:02d}</small></a>'''
+    if following:
+        following_link = f'''<a class="journey-card next" data-nav="next" href="../{following['number']:03d}-{html.escape(following['slug'])}/">
+          <span class="journey-kicker">Next revealed niblet →</span><strong>{html.escape(following['title'])}</strong><small>#{following['number']:02d}</small></a>'''
+    else:
+        following_link = '''<div class="journey-card locked"><span class="journey-kicker">Next niblet</span><strong>Still under the napkin</strong><small>Reveals at 19:05</small></div>'''
+    theme_class = f"theme-{lesson['category']}"
+    scene_class = f"scene-{lesson['slug']}"
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="theme-color" content="{accent}">
     <title>Niblet {lesson['number']:02d} · {html.escape(lesson['title'])}</title>
     <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="../../assets/theme.css"></head>
-    <body class="lesson-page" style="--accent:{accent}"><div class="noise"></div>
+    <body class="lesson-page {html.escape(theme_class)} {html.escape(scene_class)}" style="--accent:{accent}"><div class="noise"></div>
     <nav><a class="brand" href="../../">Nibl<b></b>et</a><span class="nav-meta">Niblet {lesson['number']:02d} · {lesson['minutes']} min</span></nav>
     <header class="lesson-top"><div class="lesson-intro"><span class="eyebrow">{html.escape(lesson['category_title'])} · #{lesson['number']:02d}</span>
     <h1>{html.escape(lesson['title'])}</h1><p>{html.escape(lesson['summary'])}</p></div>
     <div class="lesson-art" aria-hidden="true"><span class="glyph">{html.escape(str(lesson['glyph']))}</span></div></header>
-    <main class="lesson-wrap"><article class="lesson-body">{lesson['body']}</article></main>
-    <footer class="footer-nav"><a href="../../">← All unlocked niblets</a><span>New niblet tomorrow · 19:05</span></footer>
+    <main class="lesson-wrap"><article class="lesson-body">{lesson['body']}</article>
+    <nav class="lesson-journey" aria-label="Lesson navigation">{previous_link}{following_link}</nav></main>
+    <footer class="footer-nav"><a href="../../">← All unlocked niblets</a><span>Niblet · one curious thing a day</span></footer>
     <script src="../../assets/app.js"></script></body></html>'''
 
 
@@ -192,10 +209,15 @@ def build_site(
         static_dir = Path(__file__).with_name("static")
         if static_dir.is_dir():
             shutil.copytree(static_dir, staged / "assets")
-        for lesson in lessons:
+        for index, lesson in enumerate(lessons):
             lesson_root = staged / lesson["url"]
             lesson_root.mkdir(parents=True)
-            (lesson_root / "index.html").write_text(_lesson_html(lesson), encoding="utf-8")
+            previous = lessons[index - 1] if index > 0 else None
+            following = lessons[index + 1] if index + 1 < len(lessons) else None
+            (lesson_root / "index.html").write_text(
+                _lesson_html(lesson, previous=previous, following=following),
+                encoding="utf-8",
+            )
             assets = lesson["source_dir"] / "assets"
             if assets.is_dir():
                 shutil.copytree(assets, lesson_root / "assets")
