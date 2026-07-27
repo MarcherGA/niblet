@@ -6,7 +6,7 @@
       "slug": "rhythm-foundations",
       "title": "Rhythm Foundations",
       "first_lesson": 1,
-      "lesson_count": 8
+      "lesson_count": 9
     }
   ],
   "lessons": [
@@ -105,6 +105,18 @@
       "summary": "Keep every numbered beat fixed while each offbeat slides later.",
       "glyph": "≈",
       "accent": "blue"
+    },
+    {
+      "number": 9,
+      "title": "Rhythmic Motif: Keep the Shape",
+      "slug": "rhythmic-motif",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-27",
+      "minutes": 9,
+      "url": "lessons/009-rhythmic-motif/",
+      "summary": "Make a short pattern recognizable enough to survive new pitches, words, and repeats.",
+      "glyph": "↻",
+      "accent": "coral"
     }
   ]
 }
