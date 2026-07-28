@@ -1,12 +1,12 @@
 {
   "brand": "Niblet",
-  "built_on": "2026-07-27",
+  "built_on": "2026-07-28",
   "categories": [
     {
       "slug": "rhythm-foundations",
       "title": "Rhythm Foundations",
       "first_lesson": 1,
-      "lesson_count": 9
+      "lesson_count": 10
     }
   ],
   "lessons": [
@@ -117,6 +117,18 @@
       "summary": "Make a short pattern recognizable enough to survive new pitches, words, and repeats.",
       "glyph": "↻",
       "accent": "coral"
+    },
+    {
+      "number": 10,
+      "title": "Pickup Note: Lean Into One",
+      "slug": "pickup-note",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-28",
+      "minutes": 9,
+      "url": "lessons/010-pickup-note/",
+      "summary": "Begin just before the bar so beat one feels like an arrival, not merely a start.",
+      "glyph": "↘1",
+      "accent": "mint"
     }
   ]
 }
