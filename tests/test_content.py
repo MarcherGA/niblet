@@ -40,15 +40,20 @@ class LabDiagnosticTests(unittest.TestCase):
         for mode in ("text-static", "narrated-animation", "audio-first", "guided-manipulation"):
             self.assertIn(mode, html + script)
         self.assertIn("counterbalance", script)
+        self.assertIn("WILLIAMS_ROWS", script)
         self.assertIn("broadAssignments", script)
         self.assertIn("familiarity", script)
         self.assertIn("assessment", script)
+        self.assertIn("concept-motion", script)
+        self.assertIn("Answer recorded.", script)
         self.assertIn("modeScores", script)
 
     def test_v2_supports_delayed_retention_and_resume(self) -> None:
         script = (ROOT / "lab" / "lab.js").read_text(encoding="utf-8")
         self.assertIn("niblet-learning-lab-v2", script)
         self.assertIn("delayedAvailableAt", script)
+        self.assertIn("day1LocalDate", script)
+        self.assertIn("18*60*60*1000", script)
         self.assertIn("localStorage", script)
         self.assertIn("delayed", script)
         self.assertTrue((ROOT / "lab" / "pilot" / "index.html").is_file())
