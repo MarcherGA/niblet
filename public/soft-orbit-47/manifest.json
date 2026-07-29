@@ -1,12 +1,12 @@
 {
   "brand": "Niblet",
-  "built_on": "2026-07-28",
+  "built_on": "2026-07-29",
   "categories": [
     {
       "slug": "rhythm-foundations",
       "title": "Rhythm Foundations",
       "first_lesson": 1,
-      "lesson_count": 10
+      "lesson_count": 11
     }
   ],
   "lessons": [
@@ -129,6 +129,18 @@
       "summary": "Begin just before the bar so beat one feels like an arrival, not merely a start.",
       "glyph": "↘1",
       "accent": "mint"
+    },
+    {
+      "number": 11,
+      "title": "3–3–2: Tilt the Eight",
+      "slug": "three-three-two",
+      "category": "rhythm-foundations",
+      "release_date": "2026-07-29",
+      "minutes": 9,
+      "url": "lessons/011-three-three-two/",
+      "summary": "Regroup eight equal subdivisions as 3 + 3 + 2 and make a straight bar lean forward.",
+      "glyph": "3·3·2",
+      "accent": "pink"
     }
   ]
 }
