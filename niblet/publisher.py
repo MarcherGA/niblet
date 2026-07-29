@@ -209,6 +209,9 @@ def build_site(
         static_dir = Path(__file__).with_name("static")
         if static_dir.is_dir():
             shutil.copytree(static_dir, staged / "assets")
+        learning_lab = content_dir.parent / "lab"
+        if learning_lab.is_dir():
+            shutil.copytree(learning_lab, staged / "learning-lab")
         for index, lesson in enumerate(lessons):
             lesson_root = staged / lesson["url"]
             lesson_root.mkdir(parents=True)

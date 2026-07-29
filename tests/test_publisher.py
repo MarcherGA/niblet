@@ -156,12 +156,41 @@ class PublisherTests(unittest.TestCase):
         self.assertNotIn("003-three", first + second)
 
     def test_lesson_page_has_category_theme_and_unique_scene_class(self) -> None:
-        self.lesson(number=5, title="Syncopation", category="rhythm-foundations", category_title="Rhythm Foundations", release_date="2026-07-27", slug="syncopation")
-        build_site(self.content, self.output, as_of=date(2026, 7, 27), secret=self.secret)
+        self.lesson(
+            number=5,
+            title="Syncopation",
+            category="rhythm-foundations",
+            category_title="Rhythm Foundations",
+            release_date="2026-07-27",
+            slug="syncopation",
+        )
+        build_site(self.content, self.output, as_of=date(2026, 7, 29), secret=self.secret)
         page = (self.output / self.secret / "lessons/005-syncopation/index.html").read_text(encoding="utf-8")
         self.assertIn("theme-rhythm-foundations", page)
         self.assertIn("scene-syncopation", page)
 
+    def test_learning_style_lab_is_published_with_persistence_and_matched_trials(self) -> None:
+        lab = self.content.parent / "lab"
+        lab.mkdir()
+        (lab / "index.html").write_text(
+            '<script>localStorage.setItem("niblet-learning-lab", "x")</script>'
+            '<section data-format="animation"></section>'
+            '<section data-format="daw"></section>'
+            '<button data-export-results>Export</button>',
+            encoding="utf-8",
+        )
+        (lab / "assets").mkdir()
+        (lab / "assets" / "sample.ogg").write_bytes(b"OggS-matched-sample")
+        build_site(self.content, self.output, as_of=date(2026, 7, 29), secret=self.secret)
+        page = (self.output / self.secret / "learning-lab/index.html").read_text(encoding="utf-8")
+        self.assertIn("niblet-learning-lab", page)
+        self.assertIn('data-format="animation"', page)
+        self.assertIn('data-format="daw"', page)
+        self.assertIn("data-export-results", page)
+        self.assertEqual(
+            b"OggS-matched-sample",
+            (self.output / self.secret / "learning-lab/assets/sample.ogg").read_bytes(),
+        )
     def test_invalid_lesson_does_not_replace_last_good_build(self) -> None:
         self.lesson(
             number=1,
