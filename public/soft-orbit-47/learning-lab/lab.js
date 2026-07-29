@@ -39,6 +39,7 @@ const blank=()=>{const cb=counterbalance();return {version:2,screen:'intro',star
 let state;try{state={...blank(),...JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')};}catch(_){state=blank();}
 state.trials ||= {};state.delayed ||= {index:0,items:{},complete:false};
 const save=()=>{state.updatedAt=Date.now();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));};
+if(state.scheduleRow==null&&Object.keys(state.trials).length===0){Object.assign(state,counterbalance());save();}
 if(state.delayedAvailableAt&&!state.day1LocalDate){state.day1CompletedAt=state.day1CompletedAt||state.delayedAvailableAt-8*60*60*1000;state.day1LocalDate=localDay(new Date(state.day1CompletedAt));state.delayedAvailableAt=state.day1CompletedAt+18*60*60*1000;save();}
 let audioCtx;
 async function ensureAudio(){audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();await audioCtx.resume();return audioCtx;}
