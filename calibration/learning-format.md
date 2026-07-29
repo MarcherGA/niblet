@@ -61,3 +61,9 @@ Options included sung-note matching, interval recognition, major/minor affect, a
 **Answer:** All are valuable; the purpose and meaning of competing prototypes needed clarification.
 
 **Decision:** Preserve all four as future curriculum tracks. Use sung-note matching/sharp-versus-flat as the controlled prototype topic because it directly supports a primary learner goal and naturally exercises animation, audio, voice, visual feedback, and DAW/tuner demonstrations. First compare narrated animation against DAW/screen presentation with script and timing held constant; then compare required versus optional participation using the winning presentation style.
+
+## Pilot-lab feedback
+
+The first experiential lab was completed, but Itay found it **too quick and too narrow**. It tested only one concept and prematurely assumed video-like delivery was the correct search space. Itay explicitly questioned whether the video preference was genuine or merely suggested by his own initial guess.
+
+**Correction:** Treat video as one candidate, not the default. Restart with a broad, multi-phase within-person battery comparing text plus static diagrams, narrated animation, audio-first guidance, and active manipulation. Separate objective learning, immediate preference, friction, and delayed retention. After broad discovery, refine pacing, agency, checkpoint frequency, feedback timing, and sustainable lesson duration inside the strongest configurations. Preserve the quick lab only as pilot evidence, not as a final profile.

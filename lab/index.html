@@ -3,156 +3,131 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0d1020">
-  <title>Niblet · Learning Style Lab</title>
+  <meta name="theme-color" content="#0b0f1c">
+  <title>Niblet · Learning Mode Discovery</title>
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="lab.css">
 </head>
 <body>
   <div class="grain"></div>
   <header class="topbar">
-    <a href="../" class="brand">Nibl<span></span>et</a>
-    <div class="lab-tag">Learning Style Lab · beta</div>
-    <button class="reset" id="resetLab" type="button">Reset</button>
+    <a class="brand" href="../">Nibl<i></i>et</a>
+    <div class="phase-label" id="phaseLabel">Part 1 · Broad discovery</div>
+    <button id="resetLab" class="quiet" type="button">Reset</button>
   </header>
-  <div class="progress" aria-label="Lab progress"><i id="progressBar"></i></div>
+  <div class="progress"><i id="progressBar"></i></div>
 
-  <main id="labApp">
-    <section class="screen active intro" data-screen="0">
-      <div class="orbit-art" aria-hidden="true"><i></i><b>?</b><span>not a personality quiz</span></div>
+  <main>
+    <section class="screen intro active" data-screen="intro">
       <div class="intro-copy">
-        <p class="kicker">A 5–7 minute behavioral experiment</p>
-        <h1>Don’t tell us how you learn.<br><em>Let us watch what works.</em></h1>
-        <p>You’ll experience the same music idea in different forms. The lab records only what happens in this browser: completion, replaying, response time, answers, and your feedback.</p>
-        <ul><li>No camera or microphone</li><li>No account</li><li>Progress survives a refresh</li><li>You choose what to share</li></ul>
-        <button class="primary" data-next type="button">Begin experiment <span>→</span></button>
+        <p class="kicker">Learning Mode Discovery · Part 1</p>
+        <h1>Start broad.<br><em>Earn the refinement.</em></h1>
+        <p class="lead">Video is only one candidate. You’ll learn eight compact music distinctions through four different modes. We measure what you learn, what holds you, and what you would willingly reopen.</p>
+        <div class="mode-ribbon">
+          <span data-mode-card="text-static">Read + see</span>
+          <span data-mode-card="narrated-animation">Watch + hear</span>
+          <span data-mode-card="audio-first">Listen first</span>
+          <span data-mode-card="guided-manipulation">Learn by changing</span>
+        </div>
+        <div class="contract"><b>12–18 minutes</b><span>Eight micro-lessons · midpoint break · progress survives closing</span></div>
+        <button class="primary" id="startLab" type="button">Start Part 1 <b>→</b></button>
+        <p class="privacy">No account, microphone, or analytics. Everything stays in this browser until you export it.</p>
+      </div>
+      <div class="compass" aria-hidden="true"><b>?</b><i></i><span>READ</span><span>WATCH</span><span>LISTEN</span><span>DO</span></div>
+    </section>
+
+    <section class="screen orientation" data-screen="orientation">
+      <p class="kicker">Before the battery</p>
+      <h2>Capture today’s context.</h2>
+      <p class="lead">This prevents one tired or unusually energetic session from becoming a personality claim.</p>
+      <div class="context-grid">
+        <div><h3>Energy right now</h3><div class="choice-row" data-context="energy"><button data-value="1">Drained</button><button data-value="2">Low</button><button data-value="3">Normal</button><button data-value="4">Good</button><button data-value="5">Locked in</button></div></div>
+        <div><h3>Environment</h3><div class="choice-row" data-context="environment"><button data-value="quiet">Quiet</button><button data-value="some-distraction">Some distraction</button><button data-value="chaotic">Chaotic</button></div></div>
+        <div><h3>Device</h3><div class="choice-row" data-context="device"><button data-value="phone">Phone</button><button data-value="desktop">Desktop</button><button data-value="tablet">Tablet</button></div></div>
+      </div>
+      <div class="sound-gate"><button id="soundCheck" type="button">▶ Test sound</button><span id="soundState">Sound not checked</span></div>
+      <button class="primary" id="beginBattery" disabled type="button">Begin the battery <b>→</b></button>
+    </section>
+
+    <section class="screen trial" data-screen="trial">
+      <div class="trial-meta"><span id="trialCounter">Trial 1 of 8</span><span id="trialMode">Mode hidden until start</span></div>
+      <p class="kicker" id="conceptFamily">Concept family</p>
+      <h2 id="trialTitle">Concept title</h2>
+      <div class="familiarity" id="familiarityPanel">
+        <p>Before seeing the lesson, how familiar is this distinction?</p>
+        <div class="choice-row"><button data-familiarity="0">New to me</button><button data-familiarity="1">Vaguely familiar</button><button data-familiarity="2">Already know it</button></div>
+        <button class="primary" id="openLesson" disabled type="button">Open this lesson <b>→</b></button>
+      </div>
+      <div class="lesson-stage" id="lessonStage" hidden>
+        <div class="mode-badge" id="modeBadge"></div>
+        <div id="modeExperience"></div>
+        <div class="lesson-timer"><i id="lessonTimerBar"></i><span id="lessonTimerText">Experience the lesson before continuing</span></div>
+        <button class="primary" id="startCheck" disabled type="button">I’m ready for the neutral check <b>→</b></button>
+      </div>
+      <div class="assessment" id="assessment" hidden>
+        <p class="kicker">Neutral check · same interface for every mode</p>
+        <h3 id="assessmentPrompt">Classify the new example.</h3>
+        <button class="play-example" id="playAssessment" type="button">▶ Play example</button>
+        <div class="assessment-answers" id="assessmentAnswers"></div>
+        <p class="feedback" id="assessmentFeedback"></p>
+      </div>
+      <div class="reaction" id="reaction" hidden>
+        <p class="kicker">Reaction after performance</p>
+        <div class="metric"><span>Held my attention</span><div data-rating="attention"></div></div>
+        <div class="metric"><span>Felt mentally effortful</span><div data-rating="effort"></div></div>
+        <div class="metric"><span>I would learn this way again</span><div data-rating="reopen"></div></div>
+        <button class="primary" id="nextTrial" disabled type="button">Next trial <b>→</b></button>
       </div>
     </section>
 
-    <section class="screen trial" data-screen="1">
-      <div class="trial-head"><p class="kicker">Format trial 01 / 02</p><h2>Narrated animation</h2><p>Headphones recommended. Let the sample carry you; don’t take notes.</p></div>
-      <div class="cinema animation-cinema" data-format="animation">
-        <div class="sky-label">TARGET · A4 · 440 Hz</div>
-        <div class="pitch-space">
-          <div class="pitch-guide"><span>sharp</span><span>center</span><span>flat</span></div>
-          <div class="target-line"></div>
-          <div class="pitch-orb" id="animationOrb"><i></i></div>
-          <svg class="trace" viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true"><path id="animationTrace" d="M0 150 C120 140 180 160 280 150 S450 140 560 150 S770 150 1000 150"/></svg>
-        </div>
-        <div class="caption" id="captionA">Press play when you’re ready.</div>
-        <audio id="audioA" src="assets/narration-sharp-flat.mp3" controls playsinline preload="metadata"></audio>
-      </div>
-      <div class="rating locked" id="ratingA">
-        <p>Finish enough of the sample to unlock your reaction.</p>
-        <div class="rating-row" data-rating="animationAttention"><span>Held my attention</span><div class="scale"></div></div>
-        <div class="rating-row" data-rating="animationClarity"><span>Made the idea clear</span><div class="scale"></div></div>
-        <div class="rating-row" data-rating="animationMore"><span>I wanted it to continue</span><div class="scale"></div></div>
-        <div class="neutral-check" data-format-check="animation">
-          <h3>Neutral learning check</h3><p>Same interface after both formats. Hear a new target and attempt.</p>
-          <button class="play-check" type="button">▶ Play check</button>
-          <div class="check-answers"><button data-answer="flat" type="button">Flat</button><button data-answer="center" type="button">Matched</button><button data-answer="sharp" type="button">Sharp</button></div>
-          <p class="check-feedback"></p>
-        </div>
-        <button class="primary" data-next type="button" disabled>Continue <span>→</span></button>
-      </div>
+    <section class="screen break-screen" data-screen="break">
+      <p class="kicker">Block one complete</p>
+      <h2>Take a real break—or keep your momentum.</h2>
+      <p class="lead">Your choice is useful behavioral evidence. Either option preserves the experiment.</p>
+      <div class="break-actions"><button class="primary" id="continueNow" type="button">Continue now</button><button class="secondary" id="pauseHere" type="button">Pause and return later</button></div>
+      <p id="pauseMessage"></p>
     </section>
 
-    <section class="screen trial" data-screen="2">
-      <div class="trial-head"><p class="kicker">Format trial 02 / 02</p><h2>DAW / tuner demonstration</h2><p>Same script. Same voice. Same duration. Only the visual language changes.</p></div>
-      <div class="cinema daw-cinema" data-format="daw">
-        <div class="daw-toolbar"><span class="traffic">● ● ●</span><b>NIBLETON LIVE</b><span>120 BPM · 4/4</span></div>
-        <div class="daw-workspace">
-          <div class="piano"><i>C5</i><i>B4</i><i>A4</i><i>G4</i><i>F4</i></div>
-          <div class="roll">
-            <div class="note target-note">TARGET · A4</div>
-            <div class="note voice-note" id="voiceNote">VOICE</div>
-            <div class="playhead" id="dawPlayhead"></div>
-          </div>
-          <div class="tuner"><small>LIVE TUNER</small><div class="meter"><i id="tunerNeedle"></i></div><strong id="tunerReadout">A4 · 0 cents</strong><span>FLAT — CENTER — SHARP</span></div>
-        </div>
-        <div class="caption" id="captionB">Press play when you’re ready.</div>
-        <audio id="audioB" src="assets/narration-sharp-flat.mp3" controls playsinline preload="metadata"></audio>
-      </div>
-      <div class="rating locked" id="ratingB">
-        <p>Finish enough of the sample to unlock your reaction.</p>
-        <div class="rating-row" data-rating="dawAttention"><span>Held my attention</span><div class="scale"></div></div>
-        <div class="rating-row" data-rating="dawClarity"><span>Made the idea clear</span><div class="scale"></div></div>
-        <div class="rating-row" data-rating="dawMore"><span>I wanted it to continue</span><div class="scale"></div></div>
-        <div class="neutral-check" data-format-check="daw">
-          <h3>Neutral learning check</h3><p>Same interface after both formats. Hear a new target and attempt.</p>
-          <button class="play-check" type="button">▶ Play check</button>
-          <div class="check-answers"><button data-answer="flat" type="button">Flat</button><button data-answer="center" type="button">Matched</button><button data-answer="sharp" type="button">Sharp</button></div>
-          <p class="check-feedback"></p>
-        </div>
-        <button class="primary" data-next type="button" disabled>Compare formats <span>→</span></button>
-      </div>
+    <section class="screen preference" data-screen="preference">
+      <p class="kicker">Broad battery complete</p>
+      <h2>Separate appeal from performance.</h2>
+      <p class="lead">Which mode would you be most willing to open tomorrow? This affects willingness—not your objective learning score.</p>
+      <div class="preference-grid" id="preferenceGrid"></div>
+      <label class="friction-note">Where did friction show up?<textarea id="frictionNote" placeholder="Optional — mention boredom, overload, controls, narration, reading, waiting, or anything else."></textarea></label>
+      <button class="primary" id="showResult" disabled type="button">See Part 1 evidence <b>→</b></button>
     </section>
 
-    <section class="screen compare" data-screen="3">
-      <p class="kicker">Don’t overthink it</p>
-      <h2>Which one pulled you forward?</h2>
-      <p class="lead">Not which looked more impressive. Which made continuing feel easiest?</p>
-      <div class="format-choice">
-        <button data-choice="formatPreference" data-value="animation" type="button"><span class="mini-orbit">●</span><b>Narrated animation</b><small>Pitch became motion</small></button>
-        <button data-choice="formatPreference" data-value="daw" type="button"><span class="mini-daw">▦</span><b>DAW demonstration</b><small>Pitch became a tool</small></button>
-        <button data-choice="formatPreference" data-value="adaptive" type="button"><span class="mini-mix">◒</span><b>Use both adaptively</b><small>Choose by concept</small></button>
+    <section class="screen result" data-screen="result">
+      <p class="kicker">Part 1 · Preliminary broad result</p>
+      <h2 id="resultHeadline">Calculating the broad pattern…</h2>
+      <p class="lead" id="resultCaveat"></p>
+      <div class="scoreboard" id="scoreboard"></div>
+      <div class="recipe-card"><span>Broad recommendation</span><h3 id="broadRecommendation"></h3><p id="recommendationWhy"></p></div>
+      <div class="next-phase">
+        <h3>What happens next</h3>
+        <ol><li>Optional neutral retention check after eight hours</li><li>Send the evidence code to Hermes</li><li>Part 2 will refine only the strongest family—pacing, guidance, feedback, and duration</li></ol>
+        <div class="retention-state" id="retentionState"></div>
       </div>
-      <label class="free-note">What did you notice about your attention? <textarea id="formatNote" placeholder="Optional — e.g. I watched the dot, I ignored the narration, the DAW felt practical…"></textarea></label>
-      <button class="primary" data-next type="button" disabled>Run participation test <span>→</span></button>
+      <div class="export-box"><h3>Export Part 1 evidence</h3><textarea id="exportText" readonly></textarea><div><button class="primary" id="copyResult" type="button">Copy result</button><button class="secondary" id="downloadResult" type="button">Download JSON</button></div><p id="copyState"></p></div>
     </section>
 
-    <section class="screen participation" data-screen="4">
-      <p class="kicker">Participation trial</p>
-      <h2>Does interruption help—or annoy you?</h2>
-      <p class="lead">This first checkpoint is required. Hear the target, then the attempt.</p>
-      <div class="tone-lab required-lab">
-        <div class="tone-orbs"><i></i><i></i></div>
-        <button class="play-tones" data-tone-trial="required" type="button">▶ Play target + attempt</button>
-        <div class="answer-set" data-answer-set="required">
-          <button data-answer="flat" type="button">Attempt was flat</button>
-          <button data-answer="center" type="button">It matched</button>
-          <button data-answer="sharp" type="button">Attempt was sharp</button>
-        </div>
-        <p class="feedback" id="requiredFeedback"></p>
+    <section class="screen delayed" data-screen="delayed">
+      <p class="kicker">Part 1 · Delayed retention</p>
+      <h2>What survived without the lesson?</h2>
+      <p class="lead">Eight new examples, presented neutrally. No original format cues.</p>
+      <div class="delayed-card">
+        <span id="delayedCounter">1 of 8</span><h3 id="delayedTitle"></h3>
+        <button class="play-example" id="playDelayed">▶ Play example</button>
+        <div class="assessment-answers" id="delayedAnswers"></div>
+        <p class="feedback" id="delayedFeedback"></p>
       </div>
-      <div class="optional-zone locked" id="optionalZone">
-        <div><p class="kicker">Optional continuation</p><h3>You’ve completed the required check.</h3><p>You may move on now—or try one more comparison. Your choice is part of the experiment.</p></div>
-        <button class="secondary" data-tone-trial="optional" type="button">Try one more</button>
-        <div class="answer-set" data-answer-set="optional">
-          <button data-answer="flat" type="button">Flat</button><button data-answer="center" type="button">Matched</button><button data-answer="sharp" type="button">Sharp</button>
-        </div>
-        <p class="feedback" id="optionalFeedback"></p>
-      </div>
-      <button class="primary" data-next type="button" disabled>Continue <span>→</span></button>
-    </section>
-
-    <section class="screen sizing" data-screen="5">
-      <p class="kicker">Now that you’ve actually tried it</p>
-      <h2>Build the daily contract</h2>
-      <p class="lead">Imagine the winning format, with a meaningful ending—not an endless feed.</p>
-      <div class="contract-grid">
-        <div><h3>Total lesson size</h3><div class="pill-set" data-single="lessonMinutes"><button data-value="3">3 min</button><button data-value="5">5 min</button><button data-value="8">7–10 min</button><button data-value="15">15+ min</button></div></div>
-        <div><h3>What should protect consistency?</h3><p>Select every mechanism you genuinely want.</p><div class="check-set" data-multi="mechanisms"><button data-value="streak">🔥 Streak</button><button data-value="reminder">⏰ Fixed reminder</button><button data-value="progress">✨ Levels + progress</button><button data-value="tiny-start">⚡ Painless start</button></div></div>
-        <div><h3>After the core ends…</h3><div class="pill-set" data-single="ending"><button data-value="stop">End cleanly</button><button data-value="bonus">Offer optional bonus practice</button><button data-value="adaptive">Expand only when I’m engaged</button></div></div>
-      </div>
-      <button class="primary" data-next type="button" disabled>Generate my evidence profile <span>→</span></button>
-    </section>
-
-    <section class="screen result" data-screen="6">
-      <p class="kicker">Evidence profile · not a fixed learning-style label</p>
-      <h2 id="resultTitle">Your format is emerging…</h2>
-      <div class="result-grid">
-        <article class="recommendation"><span>Recommended default</span><h3 id="resultFormat"></h3><p id="resultWhy"></p></article>
-        <article><span>Participation</span><h3 id="resultParticipation"></h3><p id="resultParticipationWhy"></p></article>
-        <article><span>Daily contract</span><h3 id="resultContract"></h3><p id="resultMechanisms"></p></article>
-        <article><span>Confidence</span><h3 id="resultConfidence"></h3><p>We’ll improve this after a real 7–10 minute lesson and a next-day recall check.</p></article>
-      </div>
-      <div class="export-box"><h3>Send the evidence back to Hermes</h3><p>The code contains your choices and measurements, not audio, identity, or browsing history.</p><textarea id="exportText" readonly></textarea><div class="export-actions"><button class="primary" data-export-results type="button">Copy result</button><button class="secondary" id="downloadResults" type="button">Download JSON</button></div><p class="copy-state" id="copyState"></p></div>
-      <button class="text-button" id="reviewLab" type="button">Review the experiment</button>
     </section>
   </main>
 
-  <footer><span><b>This is a format experiment, not a learning-style diagnosis.</b> It compares what helped with one music task today. Effective lesson design may change with the topic, context, and practice history.</span><span>Everything stays on this device until you export it.</span></footer>
+  <footer>
+    <span><b>This is not a fixed learning-style diagnosis.</b> It estimates which adjustable conditions worked better across these tasks; the result may change by topic, energy, device, and experience.</span>
+    <a href="pilot/">Open archived quick pilot</a>
+  </footer>
   <script src="lab.js"></script>
 </body>
 </html>

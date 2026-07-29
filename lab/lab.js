@@ -1,220 +1,91 @@
 (() => {
-  'use strict';
-  const KEY = 'niblet-learning-lab-v1';
-  const fresh = () => ({
-    version: 1, screen: 0, startedAt: Date.now(), updatedAt: Date.now(), hiddenCount: 0,
-    screens: {}, ratings: {}, choices: {}, order: null, formats: {
-      animation: {plays:0,replays:0,maxTime:0,completed:false},
-      daw: {plays:0,replays:0,maxTime:0,completed:false}
-    },
-    formatChecks: {animation:{played:false,answer:null,correct:null,latency:null},daw:{played:false,answer:null,correct:null,latency:null}},
-    participation: {requiredPlayed:false,requiredAnswer:null,requiredLatency:null,optionalPlayed:false,optionalAnswer:null,optionalLatency:null},
-    result: null
-  });
-  let state;
-  try { state = {...fresh(), ...JSON.parse(localStorage.getItem(KEY) || '{}')}; } catch (_) { state = fresh(); }
-  state.formats = {...fresh().formats, ...(state.formats || {})};
-  state.formatChecks = {...fresh().formatChecks, ...(state.formatChecks || {})};
-  state.participation = {...fresh().participation, ...(state.participation || {})};
-  state.order ||= Math.random() < 0.5 ? ['animation','daw'] : ['daw','animation'];
-  const $ = (s, r=document) => r.querySelector(s);
-  const $$ = (s, r=document) => [...r.querySelectorAll(s)];
-  const save = () => { state.updatedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(state)); };
-  function applyTrialOrder() {
-    state.order.forEach((kind,index) => {
-      const section = $(`[data-format="${kind}"]`).closest('.screen');
-      section.dataset.screen = String(index + 1);
-      $('.trial-head .kicker',section).textContent = `Format trial 0${index + 1} / 02`;
-    });
-  }
-  applyTrialOrder();
-
-  function showScreen(n) {
-    const previous = state.screen;
-    const now = Date.now();
-    state.screens[previous] = (state.screens[previous] || 0) + Math.max(0, now - (state.screenStartedAt || now));
-    state.screen = Math.max(0, Math.min(6, Number(n)));
-    state.screenStartedAt = now;
-    $$('.screen').forEach(s => s.classList.toggle('active', Number(s.dataset.screen) === state.screen));
-    $('#progressBar').style.width = `${(state.screen / 6) * 100}%`;
-    window.scrollTo({top:0, behavior:'smooth'});
-    if (state.screen === 6) renderResult();
-    save();
-  }
-
-  const captions = [
-    [0,'A note is a target, not just a name.'],[6,'A4 vibrates 440 times each second.'],[13,'When the sounds settle together, you are centered.'],
-    [21,'Faster vibration rises above the target: sharp.'],[30,'Slower vibration falls below the target: flat.'],[40,'Compare direction: above, below, or centered.'],
-    [49,'This attempt sits above the target. It is sharp.'],[57,'This trace falls below the line. The voice is flat.'],[64,'A tuner shows the same relationship.']
-  ];
-  function cueAt(t) { let text=captions[0][1]; for (const [time,caption] of captions) if (t>=time) text=caption; return text; }
-  function pitchState(t) {
-    if (t < 18) return 0;
-    if (t < 29) return 1;
-    if (t < 39) return -1;
-    if (t < 48) return 0;
-    if (t < 56) return 1;
-    if (t < 63) return -1;
-    return 0;
-  }
-  function updateAnimation(t, playing) {
-    $('#captionA').textContent = cueAt(t);
-    const p = pitchState(t), orb=$('#animationOrb');
-    orb.style.top = `calc(${p===1?'24%':p===-1?'76%':'50%'} - 29px)`;
-    orb.style.background = p===1?'var(--pink)':p===-1?'var(--coral)':'var(--cyan)';
-    $('.animation-cinema').classList.toggle('playing', playing);
-  }
-  function updateDaw(t) {
-    $('#captionB').textContent = cueAt(t);
-    const p=pitchState(t), top=p===1?20:p===-1?67:43;
-    $('#voiceNote').style.top=`${top}%`;
-    $('#tunerNeedle').style.transform=`rotate(${p*42}deg)`;
-    $('#tunerReadout').textContent = p===1?'A♯4 · +37 cents':p===-1?'A♭4 · −32 cents':'A4 · 0 cents';
-    $('#dawPlayhead').style.left=`${2+(t/69.4)*96}%`;
-  }
-  function unlockRating(kind) {
-    const box = kind==='animation' ? $('#ratingA') : $('#ratingB');
-    box.classList.remove('locked');
-    box.firstElementChild.textContent='Rate the experience you actually had.';
-    maybeEnableRating(box);
-  }
-  function wireAudio(id, kind, update) {
-    const audio=$(id), metric=state.formats[kind];
-    audio.addEventListener('play', () => {
-      if (audio.currentTime < 2 && metric.maxTime > 10) metric.replays++;
-      metric.plays++; metric.lastStartedAt=Date.now(); save(); update(audio.currentTime,true);
-    });
-    audio.addEventListener('pause', () => { metric.pauses=(metric.pauses||0)+1; save(); update(audio.currentTime,false); });
-    audio.addEventListener('seeking', () => { metric.seeks=(metric.seeks||0)+1; save(); });
-    audio.addEventListener('timeupdate', () => {
-      metric.maxTime=Math.max(metric.maxTime,audio.currentTime); update(audio.currentTime,!audio.paused);
-      if (metric.maxTime>=45) unlockRating(kind);
-      if (Math.floor(audio.currentTime)%5===0) save();
-    });
-    audio.addEventListener('ended', () => { metric.completed=true; metric.maxTime=audio.duration; unlockRating(kind); save(); });
-    if (metric.maxTime>=45 || metric.completed) unlockRating(kind);
-    update(0,false);
-  }
-
-  function buildScales() {
-    $$('.rating-row').forEach(row => {
-      const key=row.dataset.rating, scale=$('.scale',row);
-      for(let i=1;i<=5;i++) {
-        const b=document.createElement('button'); b.type='button'; b.textContent=i; b.setAttribute('aria-label',`${i} out of 5`);
-        if(state.ratings[key]===i)b.classList.add('selected');
-        b.addEventListener('click',()=>{state.ratings[key]=i;$$('button',scale).forEach(x=>x.classList.toggle('selected',x===b));maybeEnableRating(row.closest('.rating'));save();});
-        scale.appendChild(b);
-      }
-    });
-  }
-  function maybeEnableRating(box) {
-    if(box.classList.contains('locked'))return;
-    const keys=$$('.rating-row',box).map(r=>r.dataset.rating);
-    const kind=box.id==='ratingA'?'animation':'daw';
-    $('[data-next]',box).disabled=!(keys.every(k=>state.ratings[k]) && state.formatChecks[kind].answer);
-  }
-
-  $$('[data-next]').forEach(btn=>btn.addEventListener('click',()=>showScreen(state.screen+1)));
-  $$('[data-choice]').forEach(btn=>{
-    const key=btn.dataset.choice;
-    if(state.choices[key]===btn.dataset.value)btn.classList.add('selected');
-    btn.addEventListener('click',()=>{
-      state.choices[key]=btn.dataset.value;
-      $$(`[data-choice="${key}"]`).forEach(x=>x.classList.toggle('selected',x===btn));
-      $('[data-screen="3"] [data-next]').disabled=false; save();
-    });
-  });
-  $('#formatNote').value=state.choices.formatNote||'';
-  $('#formatNote').addEventListener('input',e=>{state.choices.formatNote=e.target.value;save();});
-  if(state.choices.formatPreference)$('[data-screen="3"] [data-next]').disabled=false;
-
-  let audioCtx, toneStarted={};
-  function tone(freq,start,duration=.72,gain=.13){
-    const osc=audioCtx.createOscillator(),g=audioCtx.createGain(); osc.type='sine';osc.frequency.value=freq;g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(gain,start+.03);g.gain.exponentialRampToValueAtTime(.0001,start+duration);osc.connect(g).connect(audioCtx.destination);osc.start(start);osc.stop(start+duration+.05);
-  }
-  // Parallel neutral checks: equal pitch distance, direction swapped between formats.
-  const firstDirection = state.order[0] === 'animation' ? 'sharp' : 'flat';
-  const checkDirections = {
-    [state.order[0]]: firstDirection,
-    [state.order[1]]: firstDirection === 'sharp' ? 'flat' : 'sharp'
-  };
-  $$('[data-format-check]').forEach(check => {
-    const kind=check.dataset.formatCheck, metric=state.formatChecks[kind], answers=$('.check-answers',check);
-    if(metric.answer){answers.classList.add('ready');$$('[data-answer]',answers).forEach(b=>b.classList.toggle('selected',b.dataset.answer===metric.answer));$('.check-feedback',check).textContent=metric.correct?'Correct — recorded separately from your preference.':`This attempt was ${checkDirections[kind]}.`;}
-    $('.play-check',check).addEventListener('click',async()=>{
-      audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();await audioCtx.resume();metric.played=true;metric.startedAt=performance.now();
-      const now=audioCtx.currentTime+.05;tone(440,now);tone(checkDirections[kind]==='sharp'?466.16:415.30,now+1.05);answers.classList.remove('ready');setTimeout(()=>answers.classList.add('ready'),1700);save();
-    });
-    $$('[data-answer]',answers).forEach(btn=>btn.addEventListener('click',()=>{
-      metric.answer=btn.dataset.answer;metric.correct=metric.answer===checkDirections[kind];metric.latency=metric.startedAt?Math.round(performance.now()-metric.startedAt):null;
-      $$('[data-answer]',answers).forEach(b=>b.classList.toggle('selected',b===btn));$('.check-feedback',check).textContent=metric.correct?'Correct — recorded separately from your preference.':`This attempt was ${checkDirections[kind]}.`;
-      maybeEnableRating(check.closest('.rating'));save();
-    }));
-  });
-  $$('[data-tone-trial]').forEach(btn=>btn.addEventListener('click',async()=>{
-    const kind=btn.dataset.toneTrial;
-    audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); await audioCtx.resume();
-    toneStarted[kind]=performance.now(); state.participation[`${kind}Played`]=true;
-    const now=audioCtx.currentTime+.05; tone(440,now); tone(kind==='required'?466.16:415.30,now+1.05);
-    const set=$(`[data-answer-set="${kind}"]`); set.classList.remove('ready');
-    setTimeout(()=>set.classList.add('ready'),1700); save();
-  }));
-  $$('[data-answer-set]').forEach(set=>$$('[data-answer]',set).forEach(btn=>btn.addEventListener('click',()=>{
-    const kind=set.dataset.answerSet, answer=btn.dataset.answer, correct=kind==='required'?'sharp':'flat';
-    state.participation[`${kind}Answer`]=answer; state.participation[`${kind}Correct`]=answer===correct;
-    state.participation[`${kind}Latency`]=toneStarted[kind]?Math.round(performance.now()-toneStarted[kind]):null;
-    $$('button',set).forEach(x=>x.classList.toggle('selected',x===btn));
-    $(`#${kind}Feedback`).textContent=answer===correct?'Correct — you tracked the direction.':`The attempt was ${correct}. The direction matters more than the note name.`;
-    if(kind==='required'){$('#optionalZone').classList.remove('locked');$('[data-screen="4"]>[data-next]').disabled=false;}
-    save();
-  })));
-  if(state.participation.requiredAnswer){$('#optionalZone').classList.remove('locked');$('[data-screen="4"]>[data-next]').disabled=false;}
-
-  $$('[data-single]').forEach(set=>{
-    const key=set.dataset.single;
-    $$('button',set).forEach(btn=>{
-      if(state.choices[key]===btn.dataset.value)btn.classList.add('selected');
-      btn.addEventListener('click',()=>{state.choices[key]=btn.dataset.value;$$('button',set).forEach(x=>x.classList.toggle('selected',x===btn));validateContract();save();});
-    });
-  });
-  $$('[data-multi]').forEach(set=>{
-    const key=set.dataset.multi; state.choices[key] ||= [];
-    $$('button',set).forEach(btn=>{
-      if(state.choices[key].includes(btn.dataset.value))btn.classList.add('selected');
-      btn.addEventListener('click',()=>{const v=btn.dataset.value,a=state.choices[key];a.includes(v)?a.splice(a.indexOf(v),1):a.push(v);btn.classList.toggle('selected');validateContract();save();});
-    });
-  });
-  function validateContract(){ $('[data-screen="5"] [data-next]').disabled=!(state.choices.lessonMinutes&&state.choices.ending&&(state.choices.mechanisms||[]).length); }
-  validateContract();
-
-  function scoreFormat(kind){return ['Attention','Clarity','More'].reduce((s,k)=>s+(state.ratings[kind+k]||0),0)+(state.choices.formatPreference===kind?2:0)+(state.formatChecks[kind].correct?4:0);}
-  function resultData(){
-    const a=scoreFormat('animation'),d=scoreFormat('daw'),pref=state.choices.formatPreference;
-    const bothChecks=state.formatChecks.animation.answer&&state.formatChecks.daw.answer;
-    const format=!bothChecks||pref==='adaptive'||Math.abs(a-d)<=3?'Adaptive narrated animation + DAW':a>d?'Narrated animation':'DAW-guided demonstration';
-    const participated=!!state.participation.optionalPlayed;
-    const interaction=participated?'Required micro-checkpoints + optional bonus':'Brief required checkpoints, clean stopping points';
-    const minutes=state.choices.lessonMinutes==='8'?'7–10 minutes':`${state.choices.lessonMinutes||'?'} minutes`;
-    const confidence=(state.formats.animation.maxTime>=45&&state.formats.daw.maxTime>=45&&Object.keys(state.ratings).length===6&&bothChecks)?'Provisional · one task today':'Incomplete · engagement signal only';
-    return {format,interaction,minutes,mechanisms:state.choices.mechanisms||[],confidence,scores:{animation:a,daw:d},learningChecks:state.formatChecks,order:state.order,formatPreference:pref,ratings:state.ratings,behavior:{formats:state.formats,participation:state.participation,hiddenCount:state.hiddenCount},note:state.choices.formatNote||'',ending:state.choices.ending,generatedAt:new Date().toISOString()};
-  }
-  function renderResult(){
-    const r=resultData();state.result=r;save();
-    $('#resultTitle').textContent='A format hypothesis—not a box.';$('#resultFormat').textContent=r.format;
-    const checkSummary=`Neutral checks: animation ${r.learningChecks.animation.correct?'correct':'incorrect'}; DAW ${r.learningChecks.daw.correct?'correct':'incorrect'}. Order: ${r.order.join(' → ')}.`;
-    $('#resultWhy').textContent=`Animation scored ${r.scores.animation}; DAW scored ${r.scores.daw}. ${checkSummary} Appeal and learning evidence remain separate in the export.`;
-    $('#resultParticipation').textContent=r.interaction;$('#resultParticipationWhy').textContent=r.behavior.participation.optionalPlayed?'You chose to continue after the required checkpoint.':'You completed the required checkpoint without opting into the extra trial.';
-    $('#resultContract').textContent=`${r.minutes} · ${r.ending==='bonus'?'optional bonus':r.ending==='adaptive'?'adaptive extension':'clean ending'}`;
-    $('#resultMechanisms').textContent=r.mechanisms.length?r.mechanisms.join(' · '):'No mechanisms selected';$('#resultConfidence').textContent=r.confidence;
-    const compact=btoa(unescape(encodeURIComponent(JSON.stringify(r))));
-    $('#exportText').value=`NIBLET-LAB-V1:${compact}`;
-  }
-  $('[data-export-results]').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#exportText').value);$('#copyState').textContent='Copied. Paste this code into our Telegram chat.';}catch(_){$('#exportText').select();document.execCommand('copy');$('#copyState').textContent='Copied. Paste it into Telegram.';}});
-  $('#downloadResults').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state.result,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='niblet-learning-lab.json';a.click();URL.revokeObjectURL(a.href);});
-  $('#reviewLab').addEventListener('click',()=>showScreen(0));
-  $('#resetLab').addEventListener('click',()=>{if(confirm('Erase this lab run and start over?')){localStorage.removeItem(KEY);location.reload();}});
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){state.hiddenCount++;save();}});
-
-  buildScales();wireAudio('#audioA','animation',updateAnimation);wireAudio('#audioB','daw',updateDaw);
-  showScreen(state.screen||0);
+'use strict';
+const STORAGE_KEY='niblet-learning-lab-v2';
+const MODES=[
+  {id:'text-static',name:'Read + static visuals',short:'READ + SEE'},
+  {id:'narrated-animation',name:'Narrated animation',short:'WATCH + HEAR'},
+  {id:'audio-first',name:'Audio-first guidance',short:'LISTEN FIRST'},
+  {id:'guided-manipulation',name:'Guided manipulation',short:'LEARN BY CHANGING'}
+];
+const CONCEPTS=[
+ {id:'contour',title:'Arch or Ramp?',family:'Melodic shape',labels:['Arch','Ramp'],explain:'An arch rises and then returns downward. A ramp keeps travelling mainly in one direction. Ignore exact note names and track whether the direction reverses.',symbols:['⌒','↗'],audio:'assets/v2-contour.mp3'},
+ {id:'attack',title:'Pluck or Swell?',family:'Sound shape',labels:['Pluck','Swell'],explain:'A pluck reaches strong volume immediately and fades. A swell begins quietly and grows. Judge where the energy arrives, not the pitch.',symbols:['▮▱▱','▱▰█'],audio:'assets/v2-attack.mp3'},
+ {id:'offbeat',title:'Anchored or Offbeat?',family:'Rhythmic placement',labels:['Anchored','Offbeat'],explain:'An anchored entrance begins on the steady pulse. An offbeat entrance begins between pulses. Keep the pulse fixed and locate only the entrance.',symbols:['●·●·','·●·●'],audio:'assets/v2-offbeat.mp3'},
+ {id:'spacing',title:'Close or Open?',family:'Chord spacing',labels:['Close','Open'],explain:'Close spacing packs notes into a narrow register. Open spacing spreads them farther apart. Ignore major or minor and listen only to distance.',symbols:['≡','↕'],audio:'assets/v2-spacing.mp3'},
+ {id:'sequence',title:'Repeat or Sequence?',family:'Melodic transformation',labels:['Exact repeat','Sequence'],explain:'An exact repeat returns with the same pitches. A sequence keeps the shape but moves the whole phrase higher or lower.',symbols:['⌁ ⌁','⌁  ⌁̅'],audio:'assets/v2-sequence.mp3'},
+ {id:'articulation',title:'Staccato or Legato?',family:'Note connection',labels:['Staccato','Legato'],explain:'Staccato notes are short and separated by gaps. Legato notes connect smoothly. Tempo may stay identical; listen between notes.',symbols:['• • •','━━━'],audio:'assets/v2-articulation.mp3'},
+ {id:'swing',title:'Straight or Swing?',family:'Subdivision feel',labels:['Straight','Swing'],explain:'Straight subdivisions split the beat equally. Swing creates a long-short bounce while the main pulse stays steady.',symbols:['|·|·','|··|·'],audio:'assets/v2-swing.mp3'},
+ {id:'meter',title:'Duple or Triple?',family:'Pulse grouping',labels:['Duple','Triple'],explain:'Duple grouping returns the accent every two pulses. Triple grouping returns it every three. Pulse speed can remain identical.',symbols:['>· >·','>·· >··'],audio:'assets/v2-meter.mp3'}
+];
+const FAST=new URLSearchParams(location.search).has('fast');
+const DEBUG_DELAYED=new URLSearchParams(location.search).has('debugDelayed');
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+function counterbalance(){
+ const conceptOrder=shuffle(CONCEPTS.map(c=>c.id));
+ const modeOrder=[...shuffle(MODES.map(m=>m.id)),...shuffle(MODES.map(m=>m.id))];
+ const broadAssignments={};conceptOrder.forEach((id,i)=>broadAssignments[id]=modeOrder[i]);
+ return {conceptOrder,broadAssignments};
+}
+const blank=()=>{const cb=counterbalance();return {version:2,screen:'intro',startedAt:Date.now(),screenStartedAt:Date.now(),context:{},soundChecked:false,trialIndex:0,...cb,trials:{},preference:null,frictionNote:'',breakChoice:null,delayedAvailableAt:null,delayed:{index:0,items:{},complete:false},hiddenCount:0};};
+let state;try{state={...blank(),...JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')};}catch(_){state=blank();}
+state.trials ||= {};state.delayed ||= {index:0,items:{},complete:false};
+const save=()=>{state.updatedAt=Date.now();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));};
+let audioCtx;
+async function ensureAudio(){audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();await audioCtx.resume();return audioCtx;}
+function osc(freq,start,dur=.3,gain=.12,type='sine',attack=.02,release=.08){const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(gain,start+attack);g.gain.setValueAtTime(gain,Math.max(start+attack,start+dur-release));g.gain.exponentialRampToValueAtTime(.0001,start+dur);o.connect(g).connect(audioCtx.destination);o.start(start);o.stop(start+dur+.03);}
+function click(start,strong=false){osc(strong?900:620,start,.055,strong?.15:.08,'square',.005,.03);}
+async function playConcept(id,variant,novel=false){await ensureAudio();const t=audioCtx.currentTime+.05,shift=novel?1.05946:1;let duration=3;
+ if(id==='contour'){const a=[262,330,392,330,262],b=[262,294,330,349,392],seq=(variant===0?a:b).map(x=>x*shift);seq.forEach((f,i)=>osc(f,t+i*.42,.34,.1));duration=2.2;}
+ if(id==='attack'){if(variant===0){for(let i=0;i<3;i++)osc(220*shift,t+i*.8,.65,.14,'triangle',.006,.45);}else{for(let i=0;i<2;i++)osc(220*shift,t+i*1.25,1.15,.12,'sine',.72,.2);duration=2.7;}}
+ if(id==='offbeat'){for(let i=0;i<6;i++)click(t+i*.45,i%2===0);for(let i=0;i<3;i++)osc(330*shift,t+(variant===0?0:.225)+i*.9,.18,.1,'triangle');duration=2.7;}
+ if(id==='spacing'){const close=[262,294,330],open=[131,262,523],ch=variant===0?close:open;ch.forEach(f=>osc(f*shift,t,2.2,.075,'sine',.08,.3));duration=2.3;}
+ if(id==='sequence'){const base=[262,294,330],second=variant===0?base:base.map(x=>x*1.26);[...base,...second].forEach((f,i)=>osc(f*shift,t+i*.35,.28,.1));duration=2.2;}
+ if(id==='articulation'){const notes=[262,294,330,349,392];notes.forEach((f,i)=>osc(f*shift,t+i*.43,variant===0?.16:.42,.1,'triangle'));duration=2.2;}
+ if(id==='swing'){const times=variant===0?[0,.3,.6,.9,1.2,1.5]:[0,.4,.6,1,1.2,1.6];times.forEach((x,i)=>click(t+x,i%2===0));duration=1.9;}
+ if(id==='meter'){for(let i=0;i<9;i++)click(t+i*.32,i%(variant===0?2:3)===0);duration=2.9;}
+ return duration;
+}
+function show(name){state.screen=name;state.screenStartedAt=Date.now();$$('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===name));const map={intro:0,orientation:5,trial:10+state.trialIndex*9,break:48,preference:84,result:100,delayed:95};$('#progressBar').style.width=`${map[name]||0}%`;$('#phaseLabel').textContent=name==='delayed'?'Part 1 · Delayed retention':'Part 1 · Broad discovery';scrollTo({top:0,behavior:'smooth'});save();if(name==='trial')loadTrial();if(name==='preference')renderPreferences();if(name==='result')renderResult();if(name==='delayed')renderDelayed();}
+document.addEventListener('visibilitychange',()=>{if(document.hidden){state.hiddenCount++;save();}});
+$('#resetLab').addEventListener('click',()=>{if(confirm('Erase Part 1 data and restart with a new counterbalanced order?')){localStorage.removeItem(STORAGE_KEY);location.href=location.pathname;}});
+$('#startLab').addEventListener('click',()=>show('orientation'));
+$$('[data-context]').forEach(row=>$$('button',row).forEach(b=>b.addEventListener('click',()=>{state.context[row.dataset.context]=b.dataset.value;$$('button',row).forEach(x=>x.classList.toggle('selected',x===b));validateOrientation();save();})));
+async function soundCheck(){await ensureAudio();const t=audioCtx.currentTime+.05;osc(440,t,.35,.1);osc(660,t+.45,.35,.1);state.soundChecked=true;$('#soundState').textContent='Sound works ✓';validateOrientation();save();}
+$('#soundCheck').addEventListener('click',soundCheck);
+function validateOrientation(){$('#beginBattery').disabled=!(state.context.energy&&state.context.environment&&state.context.device&&state.soundChecked);}
+$('#beginBattery').addEventListener('click',()=>{state.trialIndex=state.trialIndex||0;show('trial');});
+function modeFor(id){return MODES.find(m=>m.id===state.broadAssignments[id]);}function conceptForIndex(){return CONCEPTS.find(c=>c.id===state.conceptOrder[state.trialIndex]);}
+let exposureTimer=null;
+function trialState(c){return state.trials[c.id] ||= {concept:c.id,mode:state.broadAssignments[c.id],stage:'familiarity',familiarity:null,openedAt:null,activeMs:0,examplesPlayed:0,morphCount:0,narrationMax:0,assessment:{answers:[],correct:[],latencies:[]},ratings:{},complete:false};}
+function loadTrial(){clearInterval(exposureTimer);const c=conceptForIndex(),m=modeFor(c.id),t=trialState(c);$('#trialCounter').textContent=`Trial ${state.trialIndex+1} of 8`;$('#trialMode').textContent=m.name;$('#conceptFamily').textContent=c.family;$('#trialTitle').textContent=c.title;$('#familiarityPanel').hidden=false;$('#lessonStage').hidden=true;$('#assessment').hidden=true;$('#reaction').hidden=true;$$('[data-familiarity]').forEach(b=>{b.classList.toggle('selected',Number(b.dataset.familiarity)===t.familiarity);b.onclick=()=>{t.familiarity=Number(b.dataset.familiarity);$$('[data-familiarity]').forEach(x=>x.classList.toggle('selected',x===b));$('#openLesson').disabled=false;save();};});$('#openLesson').disabled=t.familiarity===null;$('#openLesson').onclick=()=>openLesson(c,m,t);if(t.stage==='lesson')openLesson(c,m,t);if(t.stage==='assessment'){ $('#familiarityPanel').hidden=true;beginAssessment(c,t); }if(t.stage==='reaction'){ $('#familiarityPanel').hidden=true;showReaction(c,t); }}
+function exampleButtons(c,t,dark=true){return `<div class="lesson-actions"><button class="example-button" data-example="0">▶ ${c.labels[0]} example</button><button class="example-button" data-example="1">▶ ${c.labels[1]} example</button></div>`;}
+function renderExperience(c,m,t){
+ if(m.id==='text-static')return `<div class="experience text-experience"><p class="kicker">Read + static diagram</p><h3>${c.title}</h3><p>${c.explain}</p><div class="static-pair"><div class="static-card"><div class="visual-symbol">${c.symbols[0]}</div><b>${c.labels[0]}</b></div><div class="static-card"><div class="visual-symbol">${c.symbols[1]}</div><b>${c.labels[1]}</b></div></div>${exampleButtons(c,t,false)}</div>`;
+ if(m.id==='narrated-animation')return `<div class="experience animation-experience"><div class="animation-stage">${[30,65,90,55,25,60,82,35].map(h=>`<i style="height:${h}%"></i>`).join('')}</div><p class="caption-live">Watch the shape while the narration explains the distinction.</p><audio src="${c.audio}" controls playsinline preload="metadata"></audio>${exampleButtons(c,t)}</div>`;
+ if(m.id==='audio-first')return `<div class="experience audio-experience"><div><div class="audio-orb">♪</div><h3>${c.title}</h3><p>Keep the screen secondary. Build the distinction through listening.</p><audio src="${c.audio}" controls playsinline preload="metadata"></audio>${exampleButtons(c,t)}</div></div>`;
+ return `<div class="experience interactive-experience"><p class="kicker">Guided manipulation</p><h3>Change the sound until the distinction becomes obvious.</h3><div class="morph-control"><div class="morph-labels"><span>${c.labels[0]}</span><span>${c.labels[1]}</span></div><input type="range" min="0" max="100" value="0" id="morphRange"></div><div class="interactive-readout" id="interactiveReadout">${c.labels[0]}</div><button class="example-button" id="playMorph">▶ Play current state</button><p>${c.explain}</p></div>`;
+}
+function openLesson(c,m,t){$('#familiarityPanel').hidden=true;$('#lessonStage').hidden=false;$('#modeBadge').textContent=m.name;$('#modeExperience').innerHTML=renderExperience(c,m,t);t.stage='lesson';t.openedAt ||= Date.now();t.lastActiveAt=Date.now();save();
+ $$('.example-button',$('#modeExperience')).forEach(b=>{if(b.id==='playMorph')return;b.addEventListener('click',async()=>{t.examplesPlayed++;await playConcept(c.id,Number(b.dataset.example));save();updateEligibility(c,m,t);});});
+ const audio=$('audio',$('#modeExperience'));if(audio){audio.addEventListener('play',()=>{t.narrationPlays=(t.narrationPlays||0)+1;save();});audio.addEventListener('timeupdate',()=>{t.narrationMax=Math.max(t.narrationMax,audio.currentTime);save();updateEligibility(c,m,t);});audio.addEventListener('ended',()=>{t.narrationEnded=true;save();updateEligibility(c,m,t);});}
+ if(m.id==='guided-manipulation'){const range=$('#morphRange'),read=$('#interactiveReadout');range.addEventListener('input',()=>{t.morphCount++;const v=Number(range.value)>=50?1:0;read.textContent=c.labels[v];read.style.color=v?'var(--pink)':'var(--lime)';save();updateEligibility(c,m,t);});$('#playMorph').addEventListener('click',async()=>{t.examplesPlayed++;await playConcept(c.id,Number(range.value)>=50?1:0);save();updateEligibility(c,m,t);});}
+ $('#startCheck').onclick=()=>beginAssessment(c,t);exposureTimer=setInterval(()=>{t.activeMs+=500;updateEligibility(c,m,t);if(t.activeMs%5000===0)save();},500);updateEligibility(c,m,t);
+}
+function updateEligibility(c,m,t){const min=FAST?0:25000,progress=Math.min(100,(t.activeMs/min)*100||100);$('#lessonTimerBar').style.width=`${progress}%`;let actions=t.examplesPlayed>=2;if(m.id==='text-static')actions=actions&&t.activeMs>=min;if(m.id==='narrated-animation'||m.id==='audio-first')actions=actions&&(FAST||t.narrationMax>=20);if(m.id==='guided-manipulation')actions=actions&&(FAST||t.morphCount>=3)&&t.activeMs>=min;$('#startCheck').disabled=!actions;$('#lessonTimerText').textContent=actions?'Neutral check unlocked':m.id==='guided-manipulation'?'Move the control and play both sides':m.id==='text-static'?'Read and play both examples':'Listen for at least 20 seconds and play both examples';}
+function beginAssessment(c,t){clearInterval(exposureTimer);$('#lessonStage').hidden=true;$('#assessment').hidden=false;t.stage='assessment';t.assessment.order ||= Math.random()<.5?[0,1]:[1,0];t.assessment.index=t.assessment.answers.length;save();renderAssessment(c,t);}
+function renderAssessment(c,t){const idx=t.assessment.index;if(idx>=2){$('#assessment').hidden=true;showReaction(c,t);return;}const variant=t.assessment.order[idx];$('#assessmentPrompt').textContent=`New example ${idx+1} of 2: ${c.labels[0]} or ${c.labels[1]}?`;const answers=$('#assessmentAnswers');answers.innerHTML=c.labels.map((x,i)=>`<button data-value="${i}">${x}</button>`).join('');answers.classList.add('disabled');$('#assessmentFeedback').textContent='';$('#playAssessment').disabled=false;$('#playAssessment').onclick=async()=>{t.assessment.playedAt=performance.now();$('#playAssessment').disabled=true;const duration=await playConcept(c.id,variant,true);setTimeout(()=>answers.classList.remove('disabled'),duration*1000);};$$('button',answers).forEach(b=>b.onclick=()=>{const ans=Number(b.dataset.value),correct=ans===variant;t.assessment.answers.push(ans);t.assessment.correct.push(correct);t.assessment.latencies.push(t.assessment.playedAt?Math.round(performance.now()-t.assessment.playedAt):null);$$('button',answers).forEach(x=>x.classList.toggle('selected',x===b));$('#assessmentFeedback').textContent=correct?'Correct.':'Noted. The answer was '+c.labels[variant]+'.';answers.classList.add('disabled');t.assessment.index++;save();setTimeout(()=>renderAssessment(c,t),650);});}
+function showReaction(c,t){t.stage='reaction';save();$('#reaction').hidden=false;$$('[data-rating]').forEach(row=>{const key=row.dataset.rating;row.innerHTML='';for(let i=1;i<=5;i++){const b=document.createElement('button');b.textContent=i;b.type='button';if(t.ratings[key]===i)b.classList.add('selected');b.onclick=()=>{t.ratings[key]=i;$$('button',row).forEach(x=>x.classList.toggle('selected',x===b));$('#nextTrial').disabled=!['attention','effort','reopen'].every(k=>t.ratings[k]);save();};row.appendChild(b);}});$('#nextTrial').disabled=!['attention','effort','reopen'].every(k=>t.ratings[k]);$('#nextTrial').onclick=()=>finishTrial(t);}
+function finishTrial(t){t.complete=true;t.completedAt=Date.now();save();if(state.trialIndex===3){show('break');return;}if(state.trialIndex===7){show('preference');return;}state.trialIndex++;show('trial');}
+$('#continueNow').addEventListener('click',()=>{state.breakChoice='continued';state.trialIndex=4;show('trial');});$('#pauseHere').addEventListener('click',()=>{state.breakChoice='paused';$('#pauseMessage').textContent='Saved. Close this page whenever you want; this break screen will still be here.';save();});
+function renderPreferences(){const grid=$('#preferenceGrid');grid.innerHTML=MODES.map(m=>`<button data-mode="${m.id}"><b>${m.name}</b><span>${m.short}</span></button>`).join('');$$('button',grid).forEach(b=>{b.classList.toggle('selected',state.preference===b.dataset.mode);b.onclick=()=>{state.preference=b.dataset.mode;$$('button',grid).forEach(x=>x.classList.toggle('selected',x===b));$('#showResult').disabled=false;save();};});$('#frictionNote').value=state.frictionNote||'';$('#frictionNote').oninput=e=>{state.frictionNote=e.target.value;save();};$('#showResult').disabled=!state.preference;}
+$('#showResult').addEventListener('click',()=>{state.delayedAvailableAt ||= Date.now()+8*60*60*1000;show('result');});
+function modeScores(includeDelayed=true){const out={};for(const m of MODES){const trials=Object.values(state.trials).filter(t=>t.mode===m.id&&t.complete);let weightedCorrect=0,weight=0,att=0,eff=0,re=0;for(const t of trials){const w=t.familiarity===2?.5:1;weightedCorrect+=t.assessment.correct.filter(Boolean).length*w;weight+=2*w;att+=t.ratings.attention||0;eff+=t.ratings.effort||0;re+=t.ratings.reopen||0;}const accuracy=weight?weightedCorrect/weight*100:0,n=trials.length||1,attention=att/n/5*100,ease=(6-eff/n)/5*100,reopen=re/n/5*100,pref=state.preference===m.id?100:0;let immediate=.55*accuracy+.15*attention+.1*ease+.1*reopen+.05*100+.05*pref;const delayedItems=Object.values(state.delayed.items||{}).filter(x=>x.mode===m.id),retention=delayedItems.length?delayedItems.filter(x=>x.correct).length/delayedItems.length*100:null;const score=includeDelayed&&retention!==null?.65*immediate+.35*retention:immediate;out[m.id]={mode:m.id,name:m.name,score:Math.round(score),immediate:Math.round(immediate),accuracy:Math.round(accuracy),attention:Math.round(attention),ease:Math.round(ease),reopen:Math.round(reopen),retention:retention===null?null:Math.round(retention)};}return out;}
+function renderResult(){const scores=modeScores(),sorted=Object.values(scores).sort((a,b)=>b.score-a.score),top=sorted[0],second=sorted[1],delta=top.score-second.score;$('#resultHeadline').textContent=state.delayed.complete?'Broad profile updated with delayed retention.':'A broad candidate—not the final recipe.';$('#resultCaveat').textContent=state.delayed.complete?'Retention is now included, but Part 2 must still refine the winning family.':'This separates learning, attention, effort, willingness, and prior familiarity. Delayed retention is not included yet.';const board=$('#scoreboard');board.innerHTML=sorted.map((s,i)=>`<article class="score-card ${i===0?'winner':''}"><span>${s.name}</span><b>${s.score}</b><small>learning ${s.accuracy} · attention ${s.attention} · ease ${s.ease}${s.retention!==null?' · retention '+s.retention:''}</small></article>`).join('');const hybrid=delta<7;$('#broadRecommendation').textContent=hybrid?`${top.name} + ${second.name} remain tied`:`${top.name} is the leading family`;$('#recommendationWhy').textContent=hybrid?`Only ${delta} points separate the top modes. Part 2 should compare them before refining pacing.`:`It leads by ${delta} points across two concepts. Part 2 should refine this family rather than assuming its current presentation is ideal.`;renderRetentionState();const payload={v:2,stage:'broad-part1',scores,leader:top.mode,runnerUp:second.mode,delta,assignment:state.broadAssignments,order:state.conceptOrder,context:state.context,preference:state.preference,breakChoice:state.breakChoice,hiddenCount:state.hiddenCount,friction:state.frictionNote,delayedComplete:state.delayed.complete};$('#exportText').value='NIBLET-BROAD-V2:'+btoa(unescape(encodeURIComponent(JSON.stringify(payload))));state.latestResult=payload;save();}
+function renderRetentionState(){const box=$('#retentionState'),ready=DEBUG_DELAYED||Date.now()>=(state.delayedAvailableAt||Infinity);if(state.delayed.complete){box.innerHTML='<b>Delayed retention complete ✓</b><p>The exported score now includes what survived.</p>';return;}if(ready){box.innerHTML='<b>Delayed retention is ready.</b><p>Eight neutral examples · about 4 minutes.</p><button class="secondary" id="startDelayed">Start retention check</button>';$('#startDelayed').onclick=()=>show('delayed');}else{const mins=Math.max(0,Math.ceil((state.delayedAvailableAt-Date.now())/60000));box.innerHTML=`<b>Retention check unlocks later.</b><p>Return in about ${Math.ceil(mins/60)} hours. Your preliminary result is usable now.</p>`;}}
+$('#copyResult').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('#exportText').value);$('#copyState').textContent='Copied. Paste it into Telegram.';}catch(_){$('#exportText').select();document.execCommand('copy');$('#copyState').textContent='Copied.';}});$('#downloadResult').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='niblet-part1-broad.json';a.click();URL.revokeObjectURL(a.href);});
+function renderDelayed(){const idx=state.delayed.index;if(idx>=state.conceptOrder.length){state.delayed.complete=true;save();show('result');return;}const id=state.conceptOrder[idx],c=CONCEPTS.find(x=>x.id===id),item=state.delayed.items[id]||{mode:state.broadAssignments[id],variant:Math.random()<.5?0:1};state.delayed.items[id]=item;$('#delayedCounter').textContent=`${idx+1} of 8`;$('#delayedTitle').textContent=c.title;const answers=$('#delayedAnswers');answers.innerHTML=c.labels.map((x,i)=>`<button data-value="${i}">${x}</button>`).join('');answers.classList.add('disabled');$('#delayedFeedback').textContent='';$('#playDelayed').disabled=false;$('#playDelayed').onclick=async()=>{item.playedAt=performance.now();$('#playDelayed').disabled=true;const d=await playConcept(id,item.variant,true);setTimeout(()=>answers.classList.remove('disabled'),d*1000);};$$('button',answers).forEach(b=>b.onclick=()=>{item.answer=Number(b.dataset.value);item.correct=item.answer===item.variant;item.latency=item.playedAt?Math.round(performance.now()-item.playedAt):null;$('#delayedFeedback').textContent=item.correct?'Correct.':'The answer was '+c.labels[item.variant]+'.';answers.classList.add('disabled');state.delayed.index++;save();setTimeout(renderDelayed,650);});save();}
+// Resume the exact phase, while rebuilding dynamic screens from stored state.
+if(state.screen==='orientation'){show('orientation');for(const [k,v] of Object.entries(state.context)){$(`[data-context="${k}"] [data-value="${v}"]`)?.classList.add('selected');}if(state.soundChecked)$('#soundState').textContent='Sound works ✓';validateOrientation();}
+else if(state.screen==='trial')show('trial');else if(state.screen==='break')show('break');else if(state.screen==='preference')show('preference');else if(state.screen==='result')show('result');else if(state.screen==='delayed')show('delayed');else show('intro');
 })();

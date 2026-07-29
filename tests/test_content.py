@@ -34,18 +34,29 @@ class LessonMediaTests(unittest.TestCase):
 
 
 class LabDiagnosticTests(unittest.TestCase):
-    def test_lab_counterbalances_order_and_checks_learning_after_each_format(self) -> None:
+    def test_v2_tests_four_broad_modes_with_counterbalanced_assignments(self) -> None:
         html = (ROOT / "lab" / "index.html").read_text(encoding="utf-8")
         script = (ROOT / "lab" / "lab.js").read_text(encoding="utf-8")
-        self.assertEqual(2, html.count("data-format-check="))
-        self.assertIn("state.order", script)
-        self.assertIn("Math.random()", script)
-        self.assertIn("formatChecks", script)
+        for mode in ("text-static", "narrated-animation", "audio-first", "guided-manipulation"):
+            self.assertIn(mode, html + script)
+        self.assertIn("counterbalance", script)
+        self.assertIn("broadAssignments", script)
+        self.assertIn("familiarity", script)
+        self.assertIn("assessment", script)
+        self.assertIn("modeScores", script)
+
+    def test_v2_supports_delayed_retention_and_resume(self) -> None:
+        script = (ROOT / "lab" / "lab.js").read_text(encoding="utf-8")
+        self.assertIn("niblet-learning-lab-v2", script)
+        self.assertIn("delayedAvailableAt", script)
+        self.assertIn("localStorage", script)
+        self.assertIn("delayed", script)
+        self.assertTrue((ROOT / "lab" / "pilot" / "index.html").is_file())
 
     def test_lab_rejects_fixed_learning_style_claims(self) -> None:
         html = (ROOT / "lab" / "index.html").read_text(encoding="utf-8")
-        self.assertIn("This is a format experiment, not a learning-style diagnosis.", html)
-        self.assertIn("one music task today", html)
+        self.assertIn("not a fixed learning-style diagnosis", html)
+        self.assertIn("may change", html)
 
 
 if __name__ == "__main__":
