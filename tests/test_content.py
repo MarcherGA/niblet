@@ -33,5 +33,20 @@ class LessonMediaTests(unittest.TestCase):
                     self.assertNotIn("autoplay", tag)
 
 
+class LabDiagnosticTests(unittest.TestCase):
+    def test_lab_counterbalances_order_and_checks_learning_after_each_format(self) -> None:
+        html = (ROOT / "lab" / "index.html").read_text(encoding="utf-8")
+        script = (ROOT / "lab" / "lab.js").read_text(encoding="utf-8")
+        self.assertEqual(2, html.count("data-format-check="))
+        self.assertIn("state.order", script)
+        self.assertIn("Math.random()", script)
+        self.assertIn("formatChecks", script)
+
+    def test_lab_rejects_fixed_learning_style_claims(self) -> None:
+        html = (ROOT / "lab" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("This is a format experiment, not a learning-style diagnosis.", html)
+        self.assertIn("one music task today", html)
+
+
 if __name__ == "__main__":
     unittest.main()

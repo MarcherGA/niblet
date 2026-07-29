@@ -3,20 +3,31 @@
   const KEY = 'niblet-learning-lab-v1';
   const fresh = () => ({
     version: 1, screen: 0, startedAt: Date.now(), updatedAt: Date.now(), hiddenCount: 0,
-    screens: {}, ratings: {}, choices: {}, formats: {
+    screens: {}, ratings: {}, choices: {}, order: null, formats: {
       animation: {plays:0,replays:0,maxTime:0,completed:false},
       daw: {plays:0,replays:0,maxTime:0,completed:false}
     },
+    formatChecks: {animation:{played:false,answer:null,correct:null,latency:null},daw:{played:false,answer:null,correct:null,latency:null}},
     participation: {requiredPlayed:false,requiredAnswer:null,requiredLatency:null,optionalPlayed:false,optionalAnswer:null,optionalLatency:null},
     result: null
   });
   let state;
   try { state = {...fresh(), ...JSON.parse(localStorage.getItem(KEY) || '{}')}; } catch (_) { state = fresh(); }
   state.formats = {...fresh().formats, ...(state.formats || {})};
+  state.formatChecks = {...fresh().formatChecks, ...(state.formatChecks || {})};
   state.participation = {...fresh().participation, ...(state.participation || {})};
+  state.order ||= Math.random() < 0.5 ? ['animation','daw'] : ['daw','animation'];
   const $ = (s, r=document) => r.querySelector(s);
   const $$ = (s, r=document) => [...r.querySelectorAll(s)];
   const save = () => { state.updatedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(state)); };
+  function applyTrialOrder() {
+    state.order.forEach((kind,index) => {
+      const section = $(`[data-format="${kind}"]`).closest('.screen');
+      section.dataset.screen = String(index + 1);
+      $('.trial-head .kicker',section).textContent = `Format trial 0${index + 1} / 02`;
+    });
+  }
+  applyTrialOrder();
 
   function showScreen(n) {
     const previous = state.screen;
@@ -99,7 +110,8 @@
   function maybeEnableRating(box) {
     if(box.classList.contains('locked'))return;
     const keys=$$('.rating-row',box).map(r=>r.dataset.rating);
-    $('[data-next]',box).disabled=!keys.every(k=>state.ratings[k]);
+    const kind=box.id==='ratingA'?'animation':'daw';
+    $('[data-next]',box).disabled=!(keys.every(k=>state.ratings[k]) && state.formatChecks[kind].answer);
   }
 
   $$('[data-next]').forEach(btn=>btn.addEventListener('click',()=>showScreen(state.screen+1)));
@@ -120,6 +132,25 @@
   function tone(freq,start,duration=.72,gain=.13){
     const osc=audioCtx.createOscillator(),g=audioCtx.createGain(); osc.type='sine';osc.frequency.value=freq;g.gain.setValueAtTime(.0001,start);g.gain.exponentialRampToValueAtTime(gain,start+.03);g.gain.exponentialRampToValueAtTime(.0001,start+duration);osc.connect(g).connect(audioCtx.destination);osc.start(start);osc.stop(start+duration+.05);
   }
+  // Parallel neutral checks: equal pitch distance, direction swapped between formats.
+  const firstDirection = state.order[0] === 'animation' ? 'sharp' : 'flat';
+  const checkDirections = {
+    [state.order[0]]: firstDirection,
+    [state.order[1]]: firstDirection === 'sharp' ? 'flat' : 'sharp'
+  };
+  $$('[data-format-check]').forEach(check => {
+    const kind=check.dataset.formatCheck, metric=state.formatChecks[kind], answers=$('.check-answers',check);
+    if(metric.answer){answers.classList.add('ready');$$('[data-answer]',answers).forEach(b=>b.classList.toggle('selected',b.dataset.answer===metric.answer));$('.check-feedback',check).textContent=metric.correct?'Correct — recorded separately from your preference.':`This attempt was ${checkDirections[kind]}.`;}
+    $('.play-check',check).addEventListener('click',async()=>{
+      audioCtx ||= new (window.AudioContext||window.webkitAudioContext)();await audioCtx.resume();metric.played=true;metric.startedAt=performance.now();
+      const now=audioCtx.currentTime+.05;tone(440,now);tone(checkDirections[kind]==='sharp'?466.16:415.30,now+1.05);answers.classList.remove('ready');setTimeout(()=>answers.classList.add('ready'),1700);save();
+    });
+    $$('[data-answer]',answers).forEach(btn=>btn.addEventListener('click',()=>{
+      metric.answer=btn.dataset.answer;metric.correct=metric.answer===checkDirections[kind];metric.latency=metric.startedAt?Math.round(performance.now()-metric.startedAt):null;
+      $$('[data-answer]',answers).forEach(b=>b.classList.toggle('selected',b===btn));$('.check-feedback',check).textContent=metric.correct?'Correct — recorded separately from your preference.':`This attempt was ${checkDirections[kind]}.`;
+      maybeEnableRating(check.closest('.rating'));save();
+    }));
+  });
   $$('[data-tone-trial]').forEach(btn=>btn.addEventListener('click',async()=>{
     const kind=btn.dataset.toneTrial;
     audioCtx ||= new (window.AudioContext||window.webkitAudioContext)(); await audioCtx.resume();
@@ -156,20 +187,22 @@
   function validateContract(){ $('[data-screen="5"] [data-next]').disabled=!(state.choices.lessonMinutes&&state.choices.ending&&(state.choices.mechanisms||[]).length); }
   validateContract();
 
-  function scoreFormat(kind){return ['Attention','Clarity','More'].reduce((s,k)=>s+(state.ratings[kind+k]||0),0)+(state.choices.formatPreference===kind?2:0);}
+  function scoreFormat(kind){return ['Attention','Clarity','More'].reduce((s,k)=>s+(state.ratings[kind+k]||0),0)+(state.choices.formatPreference===kind?2:0)+(state.formatChecks[kind].correct?4:0);}
   function resultData(){
     const a=scoreFormat('animation'),d=scoreFormat('daw'),pref=state.choices.formatPreference;
-    const format=pref==='adaptive'||Math.abs(a-d)<=2?'Adaptive narrated animation + DAW':a>d?'Narrated animation':'DAW-guided demonstration';
+    const bothChecks=state.formatChecks.animation.answer&&state.formatChecks.daw.answer;
+    const format=!bothChecks||pref==='adaptive'||Math.abs(a-d)<=3?'Adaptive narrated animation + DAW':a>d?'Narrated animation':'DAW-guided demonstration';
     const participated=!!state.participation.optionalPlayed;
     const interaction=participated?'Required micro-checkpoints + optional bonus':'Brief required checkpoints, clean stopping points';
     const minutes=state.choices.lessonMinutes==='8'?'7–10 minutes':`${state.choices.lessonMinutes||'?'} minutes`;
-    const confidence=(state.formats.animation.maxTime>=45&&state.formats.daw.maxTime>=45&&Object.keys(state.ratings).length===6)?'Good first signal':'Preliminary';
-    return {format,interaction,minutes,mechanisms:state.choices.mechanisms||[],confidence,scores:{animation:a,daw:d},formatPreference:pref,ratings:state.ratings,behavior:{formats:state.formats,participation:state.participation,hiddenCount:state.hiddenCount},note:state.choices.formatNote||'',ending:state.choices.ending,generatedAt:new Date().toISOString()};
+    const confidence=(state.formats.animation.maxTime>=45&&state.formats.daw.maxTime>=45&&Object.keys(state.ratings).length===6&&bothChecks)?'Provisional · one task today':'Incomplete · engagement signal only';
+    return {format,interaction,minutes,mechanisms:state.choices.mechanisms||[],confidence,scores:{animation:a,daw:d},learningChecks:state.formatChecks,order:state.order,formatPreference:pref,ratings:state.ratings,behavior:{formats:state.formats,participation:state.participation,hiddenCount:state.hiddenCount},note:state.choices.formatNote||'',ending:state.choices.ending,generatedAt:new Date().toISOString()};
   }
   function renderResult(){
     const r=resultData();state.result=r;save();
     $('#resultTitle').textContent='A format hypothesis—not a box.';$('#resultFormat').textContent=r.format;
-    $('#resultWhy').textContent=`Animation scored ${r.scores.animation}; DAW scored ${r.scores.daw}. This combines ratings with actual playback behavior and your direct preference.`;
+    const checkSummary=`Neutral checks: animation ${r.learningChecks.animation.correct?'correct':'incorrect'}; DAW ${r.learningChecks.daw.correct?'correct':'incorrect'}. Order: ${r.order.join(' → ')}.`;
+    $('#resultWhy').textContent=`Animation scored ${r.scores.animation}; DAW scored ${r.scores.daw}. ${checkSummary} Appeal and learning evidence remain separate in the export.`;
     $('#resultParticipation').textContent=r.interaction;$('#resultParticipationWhy').textContent=r.behavior.participation.optionalPlayed?'You chose to continue after the required checkpoint.':'You completed the required checkpoint without opting into the extra trial.';
     $('#resultContract').textContent=`${r.minutes} · ${r.ending==='bonus'?'optional bonus':r.ending==='adaptive'?'adaptive extension':'clean ending'}`;
     $('#resultMechanisms').textContent=r.mechanisms.length?r.mechanisms.join(' · '):'No mechanisms selected';$('#resultConfidence').textContent=r.confidence;
