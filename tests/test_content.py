@@ -45,6 +45,9 @@ class LabDiagnosticTests(unittest.TestCase):
         self.assertIn("familiarity", script)
         self.assertIn("assessment", script)
         self.assertIn("concept-motion", script)
+        self.assertIn("pauseLessonNarration", script)
+        self.assertIn("Playing…", script)
+        self.assertIn("Audio did not start", script)
         self.assertIn("Answer recorded.", script)
         self.assertIn("modeScores", script)
 
